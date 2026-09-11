@@ -1,378 +1,350 @@
-# BlazeHwidBan · BlazeHwidMod
+<div align="center">
 
-> 机器码（HWID）封禁 + 外挂客户端拦截 —— Paper 服务端插件 + Fabric 客户端模组
+# 🛡️ BlazeHwidBan
 
-`Paper 1.21.x ~ 26.2` · `Java 21 / 25` · `MC 26.2 + Fabric 0.19.5` · `v1.0.0` · `MIT`
+### 封的是设备，不是账号
 
-**一句话**：玩家换小号也没用。插件把"这台电脑"本身变成封禁依据——原版玩家靠客户端指纹识别，装了配套模组的玩家靠真实机器码识别；同时拦截外挂客户端进服，并联动反作弊与原生封禁系统。
+换小号 ✕　换客户端 ✕　换 IP ✕
 
----
+[![Release](https://img.shields.io/github/v/release/XiaoYuan08-Mc/BlazeHwidBan?style=for-the-badge&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=e74c3c)](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)
+[![Downloads](https://img.shields.io/github/downloads/XiaoYuan08-Mc/BlazeHwidBan/total?style=for-the-badge&label=%E4%B8%8B%E8%BD%BD&color=9b59b6)](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)
+[![Stars](https://img.shields.io/github/stars/XiaoYuan08-Mc/BlazeHwidBan?style=for-the-badge&label=Stars&color=f1c40f)](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/stargazers)
+[![License](https://img.shields.io/github/license/XiaoYuan08-Mc/BlazeHwidBan?style=for-the-badge&label=%E8%AE%B8%E5%8F%AF&color=2ecc71)](LICENSE)
 
-## 目录
+[![Paper](https://img.shields.io/badge/Paper-1.21.x%20~%2026.2-2196f3?style=for-the-badge)](https://papermc.io)
+[![Java](https://img.shields.io/badge/Java-21%20%7C%2025-ed8b00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net)
+[![Fabric](https://img.shields.io/badge/Fabric-MC%2026.2-dbd0b4?style=for-the-badge)](https://fabricmc.net)
 
-- [1. 项目简介](#1-项目简介)
-- [2. 交付物清单](#2-交付物清单)
-- [3. 功能清单](#3-功能清单)
-- [4. 工作原理](#4-工作原理)
-- [5. 命令与权限](#5-命令与权限)
-- [6. 配置文件说明](#6-配置文件说明)
-- [7. 数据文件](#7-数据文件)
-- [8. 目录结构](#8-目录结构)
-- [9. 构建方式](#9-构建方式)
-- [10. 部署与升级](#10-部署与升级)
-- [11. 版本历史](#11-版本历史)
-- [12. 已知边界与注意事项](#12-已知边界与注意事项)
-- [13. 本次全面检查与清理](#13-本次全面检查与清理)
-- [14. 维护约定与踩坑速查](#14-维护约定与踩坑速查)
+[**⬇ 下载**](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)　·　[快速开始](#-快速开始)　·　[功能一览](#-功能一览)　·　[工作原理](#-工作原理)　·　[指令](#-指令)　·　[常见问题](#-常见问题)
+
+</div>
 
 ---
 
-## 1. 项目简介
+## 💡 为什么需要它
 
-传统封禁封的是"账号"，玩家换个号就能回来。本项目的思路是把封禁**下沉到设备层**：
+Minecraft 的传统封禁封的是**账号**——玩家注册个小号，一键回到服务器。
 
-| 层次 | 依据 | 覆盖范围 | 强度 |
-|---|---|---|---|
-| 强标识 | 真实机器码（OS 级稳定标识 → SHA-256） | 装了配套客户端的玩家 | 换号无效、换客户端无效 |
-| 弱标识 | 客户端指纹（品牌/语言/设置/频道 → 哈希） | 所有玩家（含原版） | 改设置即失效，作兜底 |
+本项目把封禁下沉到**设备层**：
 
-两台机器协同工作：
+| | 传统封禁 | BlazeHwidBan |
+|---|:---:|:---:|
+| 封禁对象 | 玩家名 / UUID | **这台电脑** |
+| 换小号 | 失效 ❌ | 无效 ✅ |
+| 换客户端 | 失效 ❌ | 无效 ✅ |
+| 原版玩家 | 可封 | 可封（指纹识别）✅ |
+| 与反作弊联动 | 手动 | **自动** ✅ |
 
-```
-┌────────────────────┐        插件消息频道 blaze:hwid        ┌──────────────────────┐
-│  玩家客户端         │ ───────────────────────────────────▶ │  服务端 Paper 插件    │
-│  BlazeHwidMod      │      机器码(SHA-256) + 模组列表        │  BlazeHwidBan        │
-│  (Fabric 模组)      │                                       │                      │
-└────────────────────┘                                       │  · 机器码封禁库       │
-                                                             │  · 指纹兜底           │
-┌────────────────────┐        原版协议（无需模组）             │  · 外挂客户端拦截     │
-│  原版 / 其他客户端   │ ───────────────────────────────────▶ │  · 反作弊联动         │
-│                    │      品牌 / 语言 / 设置 / 频道          │  · 原生封禁联动       │
-└────────────────────┘                                       └──────────────────────┘
-```
-
-服务端拿不到玩家硬件信息，客户端也拿不到封禁库——所以必须两端配合，这也是交付两个 jar 的原因。
+> 服务端拿不到玩家硬件信息，客户端也拿不到封禁库，所以需要**两端配合**：一个服务端插件 + 一个客户端模组。
 
 ---
 
-## 2. 交付物清单
+## ✨ 功能一览
 
-所有交付物位于 `D:\插件项目\发布\`：
+<table>
+<tr><td width="33%" valign="top">
 
-| 文件 | 类型 | 放到哪里 | 谁需要 |
-|---|---|---|---|
-| `【服务器插件】BlazeHwidBan-1.0.0-mc26.jar` | 服务端插件 | 服务端 `plugins\` | Paper 26.x 服务器（本机测试服就是这条线） |
-| `【服务器插件】BlazeHwidBan-1.0.0-1.21线.jar` | 服务端插件 | 服务端 `plugins\` | Paper 1.21.x 老版本服务器 |
-| `【客户端mod】blazehwid-1.0.0-mc26.2.jar` | 客户端模组 | 玩家 `%appdata%\.minecraft\mods\` | 每个玩家自己装（需配 Fabric API） |
-| `先看我-文件说明.txt` | 文档 | — | 当前功能与摆放说明 |
-| `更新与补丁报告.txt` | 文档 | — | 版本历史（最新在最上面） |
+**🔒 封禁核心**
 
-> 服务器插件只有一份、客户端模组每人一份；只装一边无效。
+- 机器码封禁（设备级）
+- 客户端指纹兜底
+- 临时封禁（`7d12h` 可组合）
+- 封禁生效自动踢出**同机在线账号**
+- 同机新账号进服提醒管理员
 
----
+</td><td width="33%" valign="top">
 
-## 3. 功能清单
+**🔗 智能联动**
 
-| # | 功能 | 状态 | 说明 |
-|---|---|---|---|
-| 1 | 机器码封禁 | ✅ | 封禁依据是设备，换号/换客户端均无效 |
-| 2 | 客户端指纹兜底 | ✅ | 原版玩家也能被识别（弱标识） |
-| 3 | 临时封禁 | ✅ | `/hwidban tempban 玩家 7d12h 理由`，到期自动解除 |
-| 4 | 全机连坐 | ✅ | 封禁生效时自动踢出在线同机账号；同机新账号进服提醒管理员 |
-| 5 | 原版封禁联动 | ✅ | 双向：`/ban` → 补封机器码；`/pardon` → 解封；启动时转换既有封禁 |
-| 6 | 反作弊联动 | ✅ | 识别反作弊执行的 ban 命令（LiteBans/Vulcan/Spartan 内置；Grim/Matrix/Intave 自定义即生效） |
-| 7 | 外挂客户端拦截 | ✅ | 三道防线：品牌黑名单 / 模组黑名单 / 强制装模组 |
-| 8 | 封禁踢出画面 | ✅ | 显示原因、操作者、时间、到期、解封标识，提示申诉 |
-| 9 | 审计日志 | ✅ | 每次封禁/解封追加 `bans.log` |
-| 10 | config 自动合并 | ✅ | 升级只补缺失键，已有自定义与盐值不受影响 |
-| 11 | 豁免权限 | ✅ | `hwidban.exempt`（默认无人拥有，需手动授予） |
-| 12 | strict 严格模式 | ✅ | 一台机器绑定首个账号（默认关，网吧会误伤） |
+- 反作弊联动（LiteBans / Vulcan / Spartan / Grim 等）
+- 原生 `/ban`、`/pardon` **双向同步**
+- 启动时自动转换既有原版封禁
+- 外挂客户端识别（品牌 + 模组双重检查）
 
----
+</td><td width="33%" valign="top">
 
-## 4. 工作原理
+**⚙️ 服务器友好**
 
-### 4.1 机器码是怎么来的
+- 双版本线：Paper 1.21.x / 26.x
+- 配置自动合并（升级不用手改）
+- 审计日志 · 封禁画面 · 豁免权限
+- 全部文案可自定义（MiniMessage）
 
-```
-玩家电脑 OS 级稳定标识(只在本机计算)
-        │
-        ├── 组合 → SHA-256 → 64 位十六进制
-        │
-        └── 只把哈希发给服务器 —— 原始硬件信息不出玩家电脑
-```
-
-### 4.2 玩家进服的判定流程
-
-```
-玩家连接
-   │
-   ├─ 读客户端品牌(brand) ────────▶ 命中黑名单? ──▶ 拦截(client-guard)
-   │
-   ├─ 收到 mod 上报(机器码+模组列表)
-   │        │
-   │        ├─ 模组在黑名单? ──────────────────────▶ 拦截
-   │        │
-   │        └─ 机器码在封禁库? ────────────────────▶ 踢出并显示封禁画面
-   │
-   ├─ 无 mod 上报(宽限 5~8 秒)
-   │        ├─ require-mod 开启? ─────────────────▶ 拒绝进入
-   │        └─ 否则用指纹兜底判定是否封禁
-   │
-   └─ 放行 ──▶ 同机关联检查 ──▶ 命中则提醒在线管理员
-```
-
-### 4.3 反作弊/原生封禁联动
-
-反作弊插件的"自动处罚"本质是**执行配置里的命令**，因此本项目监听命令而不是监听事件（各家事件 API 不统一）：
-
-```
-反作弊判定作弊 → 执行它配置的 ban 命令 → 本插件识别命令 → 提取玩家 → 补封机器码 → 踢出同机账号
-```
-
-配套要求只有一条：**把反作弊的处罚命令写成 ban 类**（写成 kick 不联动）。
+</td></tr>
+</table>
 
 ---
 
-## 5. 命令与权限
+## 🔍 工作原理
 
-主命令 `/hwidban`（别名 `/hban`），权限 `hwidban.admin`（默认仅 OP）。
+### 两种身份标识
 
-| 命令 | 作用 |
-|---|---|
+```
+┌────────────────────────────────────────────┐
+│  ① 真实机器码（强标识）                       │
+│     玩家电脑 OS 级稳定标识                    │
+│       → 本机计算 SHA-256                     │
+│       → 只把哈希发给服务器                    │
+│     原始硬件信息不出玩家电脑                  │
+│     仅装了配套模组的玩家拥有 ✅               │
+├────────────────────────────────────────────┤
+│  ② 客户端指纹（弱标识）                       │
+│     品牌 + 语言 + 设置 + 频道 → 哈希          │
+│     所有玩家都有（含原版客户端）✅            │
+│     改客户端设置会变化，仅作兜底              │
+└────────────────────────────────────────────┘
+```
+
+### 玩家进服的判定流程
+
+```
+玩家连接服务器
+      │
+      ├─ ① 读客户端品牌 ──▶ 命中外挂端黑名单？──▶ 🚫 拦截
+      │
+      ├─ ② 收到配套模组上报（机器码 + 模组列表）
+      │        ├─ 模组在黑名单？──────────────▶ 🚫 拦截
+      │        └─ 机器码在封禁库？────────────▶ 🚫 踢出（显示封禁画面）
+      │
+      ├─ ③ 未装模组（宽限 5~8 秒）
+      │        ├─ require-mod 开启？──────────▶ 🚫 拒绝进入
+      │        └─ 否则用指纹兜底判定
+      │
+      └─ ✅ 放行 ──▶ 同机关联检查 ──▶ 命中则提醒在线管理员
+```
+
+### 反作弊联动怎么工作
+
+各反作弊插件的事件 API 不统一，但它们的"自动处罚"本质都是**执行一条命令**，所以本项目监听命令：
+
+```
+反作弊判定作弊 ─▶ 执行它配置的 ban 命令 ─▶ 本插件识别命令 ─▶ 补封机器码 ─▶ 踢出同机账号
+```
+
+只需把反作弊的处罚命令写成 **ban 类**（写成 `kick` 不会联动，避免误伤）。
+
+---
+
+## 🚀 快速开始
+
+### 1️⃣ 服务端安装
+
+从 [**Releases**](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases) 下载对应版本，放进服务器的 `plugins/` 文件夹：
+
+| 服务器版本 | 下载哪个 |
+|:--|:--|
+| Paper **26.x**（Java 25） | `BlazeHwidBan-1.0.0-mc26.jar` |
+| Paper **1.21.x**（Java 21） | `BlazeHwidBan-1.0.0-1.21.jar` |
+
+重启服务器即可，配置文件自动生成。
+
+### 2️⃣ 玩家端安装（可选，但强烈建议）
+
+装了才能识别**真实机器码**（否则只能用指纹兜底）：
+
+1. 下载 `mod.blazehwid-1.0.0-mc26.2.jar`
+2. 放进 `.minecraft/mods/` 文件夹
+3. 同时需要 [**Fabric API**](https://modrinth.com/mod/fabric-api)
+
+> 玩家端**不是必须**的 —— 不装模组的玩家一样能被指纹识别与封禁。
+
+### 3️⃣ 开始使用
+
+```bash
+/hwidban ban 玩家名 使用外挂      # 封禁（自动联动封机器码）
+/hwidban alt 玩家名              # 查这个人的其他小号
+/hwidban list                   # 查看封禁列表
+```
+
+---
+
+## 📜 指令
+
+主命令 `/hwidban`（别名 `/hban`）· 权限 `hwidban.admin`（默认仅 OP）
+
+| 指令 | 作用 |
+|:--|:--|
 | `/hwidban ban <玩家> [理由]` | 封禁玩家（联动封其全部机器码与指纹） |
 | `/hwidban tempban <玩家> <时长> [理由]` | 临时封禁，时长可组合如 `1d12h` |
 | `/hwidban banhwid <64位机器码> [理由]` | 直接封一个机器码 |
 | `/hwidban unban <机器码前缀\|玩家名>` | 解封（同步解除原版封禁） |
-| `/hwidban check <玩家>` | 查看该玩家的机器码/指纹档案与状态 |
+| `/hwidban check <玩家>` | 查看该玩家的机器码档案与状态 |
 | `/hwidban alt <玩家>` | 同机账号情报（同一台电脑上的其他账号） |
 | `/hwidban list [页码]` | 封禁列表分页 |
 | `/hwidban info` | 插件状态概览 |
-| `/hwidban reload` | 重载 `config.yml` |
+| `/hwidban reload` | 重载配置文件 |
 
 | 权限 | 默认 | 说明 |
-|---|---|---|
-| `hwidban.admin` | OP | 全部管理命令 |
-| `hwidban.exempt` | 无人 | 豁免机器码/指纹校验与 strict 判定 |
+|:--|:--|:--|
+| `hwidban.admin` | OP | 全部管理指令 |
+| `hwidban.exempt` | 无人拥有 | 豁免机器码/指纹校验（需手动授予） |
 
 ---
 
-## 6. 配置文件说明
+## 🔗 反作弊配置示例
 
-`plugins/BlazeHwidBan/config.yml`，按节划分：
+<details>
+<summary><b>点击展开：Grim / LiteBans / Vulcan / Spartan 的写法</b></summary>
 
-| 节 | 作用 | 关键项 |
-|---|---|---|
-| 根 | 指纹盐值 | `salt`（`auto` = 首次启动自动生成；**改动会使所有已采集指纹失效**） |
-| `fingerprint` | 指纹参与项 | `include-brand` / `include-locale` / `include-settings` / `include-channels` |
-| 频道 | mod 通信 | `channel: "blaze:hwid"` |
-| 原生联动 | 双向同步 | `sync-vanilla-ban` / `sync-vanilla-unban` |
-| `anticheat-sync` | 反作弊联动 | `enabled` / `only-console` / `ban-commands` / `unban-commands`（正则） |
-| `client-guard` | 外挂客户端拦截 | `enabled` / `action`(kick\|alert\|none) / `check-delay` / `blocked-brands` / `whitelist-mode` / `allowed-brands` / `blocked-mods` / `require-mod` / `require-mod-delay` |
-| 提醒 | 管理员提示 | `alt-notify-admins` / `no-mod-notify` / `no-mod-delay` |
-| `strict-mode` | 严格模式 | `strict-auto-ban` |
-| `audit-log` | 审计日志开关 | — |
-| `messages` | 全部文案 | 支持 MiniMessage 富文本，40+ 条消息键 |
+<br>
 
-升级时插件会**自动补齐缺失键**（不覆盖已有值，盐值绝对不动）。
-
----
-
-## 7. 数据文件
-
-`plugins/BlazeHwidBan/`：
-
-| 文件 | 内容 |
-|---|---|
-| `config.yml` | 配置 |
-| `bans.json` | 机器码封禁库（永久 + 临时条目） |
-| `profiles.json` | 玩家档案：玩家名 ↔ 机器码 ↔ 指纹、绑定时间、最后活跃 |
-| `bans.log` | 审计日志（追加写，仅事件驱动） |
-
-另会读写服务器根目录的原版 `banned-players.json` 以实现原生联动。
-
----
-
-## 8. 目录结构
+**内置识别（开箱即用，无需配置）**
 
 ```
-D:\插件项目\
-├─ BlazeHwidBan\                    服务端插件源码（Maven）
-│  ├─ pom.xml                       1.21 线构建配置
-│  └─ src\main\
-│     ├─ java\cn\blaze\hwidban\      12 个类 / 约 2000 行
-│     │  ├─ HwidBanPlugin.java       主类 / 模块接线
-│     │  ├─ command\                 命令实现
-│     │  ├─ hwid\                    封禁库与档案模型
-│     │  ├─ fingerprint\             客户端指纹
-│     │  ├─ listener\                进服/消息/客户端拦截/原生联动
-│     │  └─ util\                    哈希与文案
-│     └─ resources\                  plugin.yml / config.yml
-├─ BlazeHwidMod\                    客户端模组源码（Gradle + Fabric Loom）
-│  └─ src\main\java\cn\blaze\hwidmod\ 3 个类 / 约 250 行
-├─ test-server\                     本地测试服（Paper 26.2 核心）
-│  ├─ fhm-core-26.2-bundler.jar
-│  ├─ plugins\BlazeHwidBan\         插件 + 运行数据
-│  └─ world\ libraries\ versions\ config\ logs\
-├─ 发布\                            交付物（见第 2 节）
-├─ .tools\                          构建工具（Maven 3.9.9 / Gradle 9.5.1）
-└─ .workbuddy\memory\               项目长期约定与工作日志
-
-D:\繁花梦\端\
-├─ FHM-Core\                        你自己的 Paper 核心源码仓库
-├─ test-server\                     繁花梦测试服（已部署插件）
-├─ client-mods\                     客户端模组分发目录
-└─ fhm-website\                     官网页面
+原版      /ban  /pardon
+LiteBans  ban / tempban / ipban / unban
+Vulcan    /vulcan ban
+Spartan   /spartan ban / tempban / unban
 ```
+
+**Grim / Matrix / Intave / NCP（处罚命令由管理员自定义）**
+
+```yaml
+# Grim 的 punishments.yml
+ban %player% 作弊
+```
+
+```yaml
+# 也可以直连封机器码
+hwidban ban %player% 反作弊判定
+```
+
+> ⚠️ 处罚写成 `kick` 不会触发联动（踢出 ≠ 封禁）。
+
+</details>
 
 ---
 
-## 9. 构建方式
+## ⚙️ 配置要点
 
-> 本机没有全局 `mvn` / `gradle` 命令，均用绝对路径直启。
+<details>
+<summary><b>点击展开：config.yml 关键配置项</b></summary>
 
-### 9.1 服务端插件（双版本线）
+<br>
 
-| 版本线 | 构建目录 | Paper API | JDK |
-|---|---|---|---|
-| mc26 | `%TEMP%\blazehwidban26-build` | `26.2.build.121-stable` | Corretto 25 |
-| 1.21 | `%TEMP%\blazehwidban-build` | `1.21.4-R0.1-SNAPSHOT` | Zulu 21 |
+```yaml
+# 指纹盐值：auto = 首次启动自动生成（改了会让所有已采集指纹失效）
+salt: "auto"
+
+# 反作弊联动
+anticheat-sync:
+  enabled: true
+  only-console: true      # 只认控制台/管理员执行的命令（防玩家乱敲造成误封）
+
+# 外挂客户端拦截（三道防线）
+client-guard:
+  enabled: true
+  action: kick            # kick=踢出 / alert=仅提醒 / none=不处理
+  blocked-brands: [...]   # ① 品牌黑名单（对所有客户端生效）
+  blocked-mods: [...]     # ② 模组黑名单（需玩家装配套模组）
+  require-mod: false      # ③ 强制装模组（默认关，最强防护）
+
+# 原生封禁联动
+sync-vanilla-ban: true
+sync-vanilla-unban: true
+
+# 严格模式：一台机器绑定首个账号（网吧会误伤，默认关）
+strict-mode: false
+```
+
+升级时插件会**自动补齐缺失的配置项**，已有自定义与盐值不受影响。
+
+</details>
+
+---
+
+## 📂 项目结构
+
+```
+├─ BlazeHwidBan/          服务端插件源码（Maven）
+│  └─ src/main/java/cn/blaze/hwidban/
+│     ├─ HwidBanPlugin         主类
+│     ├─ command/              指令实现
+│     ├─ hwid/                 封禁库与档案
+│     ├─ fingerprint/          客户端指纹
+│     ├─ listener/             进服/消息/客户端拦截/原生联动
+│     └─ util/                 哈希与文案
+├─ BlazeHwidMod/          客户端模组源码（Gradle + Fabric Loom）
+├─ 发布/                   成品 jar 与完整文档
+│  ├─ 先看我-文件说明.txt        每个 jar 放哪、干什么
+│  ├─ 更新与补丁报告.txt         版本历史
+│  └─ 项目报告.md               完整技术报告
+└─ README.md
+```
+
+<details>
+<summary><b>点击展开：自行构建</b></summary>
+
+<br>
+
+**服务端插件**（JDK 21 或 25 + Maven）
 
 ```bash
-# 1) 同步源码（两个目录都要；删除过源码时还要清掉构建目录里的同名包）
-cp -r "D:/插件项目/BlazeHwidBan/src/." "$TEMP/blazehwidban26-build/src/"
-cp -r "D:/插件项目/BlazeHwidBan/src/." "$TEMP/blazehwidban-build/src/"
-
-# 2) 构建
-cd "$TEMP/blazehwidban26-build" && JAVA_HOME="C:/Program Files/Amazon Corretto/jdk25.0.4_7" \
-  "D:/插件项目/.tools/apache-maven-3.9.9/bin/mvn.cmd" \
-  -Dclassworlds.conf="D:/插件项目/.tools/apache-maven-3.9.9/bin/m2.conf" clean package
+cd BlazeHwidBan
+mvn clean package
+# 产物：target/BlazeHwidBan-1.0.0.jar
 ```
 
-> ⚠️ 两个构建目录里的 `pom.xml` 与项目内的不同（含 `-mc26` 输出名等差异），**不能删除构建目录**。
-
-### 9.2 客户端模组
+**客户端模组**（JDK 21+）
 
 ```bash
-cd "D:/插件项目/BlazeHwidMod" && "$TEMP/gradle-9.5.1/bin/gradle" --no-watch-fs clean build
-# 产物: build/libs/blazehwid-1.0.0.jar
+cd BlazeHwidMod
+./gradlew build
+# 产物：build/libs/blazehwid-1.0.0.jar
 ```
 
-### 9.3 构建后必做验证
-
-```bash
-# 新类是否真在 jar 里（构建静默失败曾发生过）
-unzip -l <jar> | grep <类名>
-# 用 Windows 路径调 javap（MSYS 的 /tmp 风格路径会静默失败）
-javap -p -cp "$(cygpath -m <jar>)" <全类名>
-```
+</details>
 
 ---
 
-## 10. 部署与升级
+## ❓ 常见问题
 
-```
-服务端：把 【服务器插件】*.jar 放进 plugins\  →  重启服务器
-玩家端：把 【客户端mod】*.jar 放进 .minecraft\mods\（需 Fabric API）→ 重启游戏
-```
+<details>
+<summary><b>玩家不装模组能被封吗？</b></summary>
+<br>
+能。不装模组的玩家用"客户端指纹"识别（弱标识，但足以拦住多数换号行为）；装了模组则是"真实机器码"（强标识，换号无效）。
+</details>
 
-- 升级**只需替换 jar**；新增配置键由插件启动时自动补齐。
-- 修改过 `messages` 文案的服务器，新版本模板不会自动覆盖（保护自定义）。
-- 测试服地址：`127.0.0.1:25565`（本机）。
+<details>
+<summary><b>会误封网吧 / 共用电脑吗？</b></summary>
+<br>
+默认不会。只有开启 <code>strict-mode</code>（一台机器绑定首个账号）才可能，该模式默认关闭。
+</details>
 
----
+<details>
+<summary><b>模组会泄露我的硬件信息吗？</b></summary>
+<br>
+不会。模组只在本机计算 SHA-256 哈希，服务器收到的是一串哈希值，原始硬件信息不出你的电脑。源码完全公开，可自行审查。
+</details>
 
-## 11. 版本历史
+<details>
+<summary><b>和反作弊插件冲突吗？</b></summary>
+<br>
+不冲突。反作弊负责检测，本插件负责把封禁落到设备层，两者互补。
+</details>
 
-| 日期 | 版本/更新 | 类型 | 摘要 |
-|---|---|---|---|
-| 2026-09-11 | 黑客端识别 `client-guard` | 新功能 | 品牌黑名单/白名单 + 模组黑名单 + 强制装模组，三道防线拦截外挂客户端 |
-| 2026-09-10 | 反作弊联动 `anticheat-sync` | 新功能 | 识别反作弊执行的 ban/unban 命令，联动机器码封禁；预置 LiteBans/Vulcan/Spartan |
-| 2026-09-09 晚 | 踢出画面 + unban 联动 | 新功能 | AdvancedBan 风格封禁画面；`/hwidban unban` 同步解除原版封禁 |
-| 2026-09-09 | 7 项新功能 + config 自动合并 | 新功能+修复 | alt 同机情报、临时封禁、strict 模式、审计日志、豁免权限、未装 mod 提醒、配置自动补齐；修复 unban 前缀匹配 |
-| 2026-09-09 | v1.0.0 首发 | 首发 | 双版本线插件 + Fabric 客户端模组、机器码封禁核心、指令体系、异步落盘 |
-
-> 详细内容见 `更新与补丁报告.txt`（每次更新在顶部追加）。
-
----
-
-## 12. 已知边界与注意事项
-
-诚实说明，避免预期错位：
-
-1. **客户端上报内容理论上可被篡改** —— 品牌与模组检查是提高门槛，不是绝对防线；配合反作弊行为检测才是完整纵深。
-2. **部分外挂端不改品牌** —— 品牌检查拦不住，靠模组黑名单与机器码兜底。
-3. **指纹是弱标识** —— 玩家改客户端设置会变，仅用于原版玩家兜底。
-4. **反作弊处罚必须写成 ban 类命令** —— 写成 kick 不会触发联动（踢出 ≠ 封禁，防误伤）。
-5. **strict 模式对网吧/共用电脑不友好** —— 默认关闭。
-6. **`salt` 不能随便改** —— 改了所有已采集指纹失效，历史档案对不上。
+<details>
+<summary><b>封禁数据存在哪里？</b></summary>
+<br>
+<code>plugins/BlazeHwidBan/</code> 下：<code>bans.json</code>（封禁库）、<code>profiles.json</code>（玩家档案）、<code>bans.log</code>（审计日志）。
+</details>
 
 ---
 
-## 13. 本次全面检查与清理
+## ⚠️ 诚实说明
 
-### 13.1 检查结果
-
-| 检查项 | 结果 |
-|---|---|
-| 源码残留（TODO / FIXME / 调试输出） | ✅ 0 处 |
-| 编译告警 | ✅ 0 条 |
-| 两版本线依赖版本 | ✅ mc26 = paper-api 26.2.build.121 / 1.21 = paper-api 1.21.4 |
-| 交付 jar 与源码一致性 | ✅ 全部重建并逐个解包校验 |
-| 服务端无头启动实测 | ✅ EXIT=0，9.6 秒加载完成，插件正常启用、正常停服、零异常 |
-| 两个测试服运行状态 | ✅ 插件已部署、配置正常、无残留数据 |
-| 文档与实现一致性 | ✅ "先看我"与"更新报告"已同步 |
-
-### 13.2 清理的无用文件（约 342 MB）
-
-| 删除项 | 体积 | 原因 |
-|---|---|---|
-| `BlazeHwidMod\.gradle\` | 72 MB | Gradle 项目缓存，构建时自动重建 |
-| `.tools\gradle-8.14.3-bin.zip` | 132 MB | 未使用的旧版本 |
-| `.tools\gradle-9.1.0-bin.zip` | 129 MB | 未使用的旧版本 |
-| `.tools\apache-maven.zip` | 8.8 MB | Maven 已解压，压缩包冗余 |
-| `BlazeHwidBan\target\` | 99 KB | 09-09 的陈旧构建产物 |
-| `.tools\mvn-build.log` | 1 KB | 散落日志 |
-| `test-server\logs\*.log.gz` | 4 个 | 日志归档 |
-| `繁花梦\端\test-server\headless-test.log` | 1 KB | 散落日志 |
-
-### 13.3 有意保留（勿删）
-
-| 项目 | 原因 |
-|---|---|
-| `.tools\apache-maven-3.9.9\`、`.tools\gradle-9.5.1-bin.zip` | 构建工具本体 |
-| `%TEMP%\blazehwidban26-build`、`blazehwidban-build` | 双线构建工作目录（含独立 pom，删除会丢失构建配置） |
-| `%TEMP%\gradle-9.5.1\` | 已解压的 Gradle（模组构建用） |
-| `test-server\` 的 `world\ libraries\ versions\ config\` | 服务器运行所需 |
-| `D:\繁花梦\端\FHM-Core\` | 你自己的 Paper 核心源码仓库，未触碰 |
-| `plugins\BlazeHwidBan\` 数据文件 | 封禁库与档案，属业务数据 |
-
----
-
-## 14. 维护约定与踩坑速查
-
-### 约定
-
-- 交付物统一从 `发布\` 出，jar 名带【服务器插件】/【客户端mod】前缀。
-- **每次更新必须在 `更新与补丁报告.txt` 顶部插入新条目**，并同步 `先看我-文件说明.txt` 对应段落。
-- 回滚某版本时，构建产物与相关记录一并回到该版本之前。
-
-### 踩坑速查
-
-| 坑 | 规避 |
-|---|---|
-| Paper 下发插件消息在客户端注册通道之前会**被拒发**（单方向故障，很难查） | 先监听 `PlayerRegisterChannelEvent`，或设计成客户端主动握手 |
-| 删除源码后构建目录里的旧类会被打进 jar | 同步清掉两个构建目录的同名包，用 `clean package` |
-| Gradle 编译暂存残留旧 class | `build\tmp\compileJava\compileTransaction\stash-dir\` 也要看，最省事 `clean build` |
-| `javap` 用 MSYS 风格路径（`/tmp/...`）会**静默失败**，看起来像"验证通过" | 用 `cygpath -m` 转 Windows 路径 |
-| 同一文件并行多个编辑会相互覆盖 | 同文件编辑必须串行 |
-| 手写脚本删 YAML 整节会把结构弄坏（子键变孤儿） | 用 jar 内默认配置整体覆盖，需保留的值单独提取 |
-| 残留 Gradle daemon 占用 journal 锁导致构建"拒绝访问" | `taskkill //F //PID <pid>` 清掉 daemon 对 |
+- **客户端上报内容理论上可被篡改** —— 品牌与模组检查是提高门槛，不是绝对防线；配合反作弊行为检测才是完整纵深。
+- **部分外挂端不改品牌标识** —— 此时靠模组黑名单与机器码兜底。
+- **指纹是弱标识** —— 玩家修改客户端设置会变化，仅用于原版玩家兜底。
 
 ---
 
 <div align="center">
 
-**BlazeHwidBan v1.0.0** · 生成于 2026-09-12
+**如果这个项目帮到了你的服务器，欢迎点个 ⭐ Star**
+
+[⬇ 下载最新版](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)　·　[报告问题](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/issues)　·　[MIT License](LICENSE)
+
+<sub>BlazeHwidBan · Paper 服务端插件 + Fabric 客户端模组 · v1.0.0</sub>
 
 </div>
