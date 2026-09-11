@@ -1,0 +1,136 @@
+# BlazeHwidBan 配置
+# 指纹盐值: 设为 auto 时首次启动自动生成; 修改盐值会使所有已采集指纹失效
+salt: "auto"
+
+fingerprint:
+  include-brand: true      # 客户端品牌 (vanilla / fabric / forge 等)
+  include-locale: true     # 游戏语言
+  include-settings: true   # 客户端设置 (主手/聊天/皮肤/渲染距离/粒子等)
+  include-channels: true   # 客户端注册的插件频道 (反映模组安装情况)
+
+# 配套客户端模组上报真实机器码的插件消息频道
+# 客户端向该频道发送一条 UTF-8 文本: 64 位十六进制 SHA-256 (可带 HWID: 前缀)
+channel: "blaze:hwid"
+
+# 原版封禁联动: 执行 /ban (含控制台与 Essentials 等) 后, 自动补封该玩家的
+# 指纹与上报机器码, 并立即踢出在线的同机账号; 启动时也会把 banned-players.json
+# 里的既有原生封禁转换为机器码封禁
+sync-vanilla-ban: true
+# 原版解封联动: 执行 /pardon 后, 同步解除该玩家名下的机器码封禁;
+# 反向同理, /hwidban unban 也会同步解除该玩家名下的原版封禁
+sync-vanilla-unban: true
+
+# 反作弊/处罚插件联动 (Grim / Vulcan / Matrix / LiteBans / AdvancedBan 等):
+# 这些插件的自动处罚本质是"执行配置的命令", 且多数自建数据库不写 banned-players.json,
+# 所以通过识别它们执行的封禁命令来联动机器码封禁。
+# 用法: 反作弊的处罚命令写成 ban 类 (如 punishments.yml 里配 "ban %player%" 或
+#       "litebans ban %player%"), 本联动即自动生效; 写成 kick 不联动 (踢出≠封禁)。
+# 原版 /ban /pardon 已内置识别, 无需在下方声明。
+anticheat-sync:
+  enabled: true
+  # 仅控制台与 hwidban.admin 管理员执行的命令才触发联动:
+  # 反作弊自动处罚一律走控制台; 普通玩家乱敲封禁命令不会真正生效, 联动会造成误封
+  only-console: true
+  # 额外识别的"封禁"命令头 (正则; 玩家名自动从参数提取, -开头的开关参数自动跳过)
+  # 装了 LiteBans/AdvancedBan 后想让它接管的原版形态 /ban /tempban 也联动的话,
+  # 自行追加 '- ^ban\b' 与 '- ^tempban\b' (去掉前面这个短横)
+  ban-commands:
+    - '(?i)^/?(?:litebans:)?litebans\s+(?:ban|tempban|ipban)\b'
+    - '(?i)^/?(?:vulcan:)?vulcan\s+ban\b'
+    - '(?i)^/?(?:spartan:)?spartan\s+(?:ban|tempban)\b'
+  # 额外识别的"解封"命令头, 联动解除机器码封禁与原版封禁
+  unban-commands:
+    - '(?i)^/?(?:litebans:)?litebans\s+unban\b'
+    - '(?i)^/?(?:spartan:)?spartan\s+unban\b'
+
+# 黑客端识别 (client-guard): 拦截外挂客户端加入服务器
+# 三道防线:
+#   ① 客户端品牌(brand)黑名单/白名单 —— 对所有客户端生效
+#   ② 违规 Fabric 模组黑名单 —— 依赖玩家安装了配套客户端 mod (mod 会上报模组列表)
+#   ③ require-mod 强制安装配套客户端 —— 未装者拒入, 最强防护, 默认关闭
+# 处理动作 action: kick=踢出, alert=仅提醒管理员, none=不处理
+client-guard:
+  enabled: true
+  action: kick
+  # 进服几秒后执行品牌/模组检查
+  check-delay: 2
+  # 品牌黑名单 (正则; 覆盖常见外挂端品牌特征, 原版/Fabric 正常客户端不受影响)
+  blocked-brands:
+    - '(?i).*(liquidbounce|wurst|aristois|fdpclient|rushhack|novoline|vape|sigma|tenacity|augustus|meteor).*'
+  # 白名单模式: 开启后只允许 allowed-brands 匹配的客户端进入 (Lunar/Badlion 等也会被拦, 适合服务器统一发客户端)
+  whitelist-mode: false
+  allowed-brands:
+    - '(?i)^(vanilla|fabric)$'
+  # 违规 Fabric 模组 id 黑名单 (模组 id 见各 mod 的 fabric.mod.json)
+  blocked-mods:
+    - meteor-client
+    - liquidbounce
+    - wurst
+    - baritone
+    - ares
+    - rushhack
+  # 强制安装配套客户端: 进服 require-mod-delay 秒后仍未收到机器码上报则拒绝进入
+  require-mod: false
+  require-mod-delay: 8
+
+# 同机关联提醒: 玩家进服后, 若其机器码与其他账号相同, 提醒在线管理员 (hwidban.admin)
+alt-notify-admins: true
+# 玩家进服数秒后仍未收到机器码上报, 提醒管理员其未安装配套客户端
+no-mod-notify: true
+no-mod-delay: 5
+
+# strict 模式: 一台机器绑定首个上报的账号, 同机其他账号进服直接拒绝
+# 注意: 网吧/共用电脑会被误伤, 默认关闭
+strict-mode: false
+# strict 拒绝的同时是否自动写入机器码封禁 (换任何客户端都进不来)
+strict-auto-ban: false
+
+# 操作审计日志: 所有封禁/解封/过期动作追加记录到 bans.log
+audit-log: true
+
+messages:
+  prefix: "<gray>[<aqua>HwidBan</aqua>]</gray> "
+  no-permission: "<red>你没有权限执行此操作。</red>"
+  usage-ban: "<yellow>用法: /hwidban ban 玩家名 [理由]</yellow>"
+  usage-tempban: "<yellow>用法: /hwidban tempban 玩家名 时长 [理由] (时长: 7d / 12h / 30m, 可组合如 1d12h)</yellow>"
+  usage-alt: "<yellow>用法: /hwidban alt 玩家名</yellow>"
+  usage-banhwid: "<yellow>用法: /hwidban banhwid 64位机器码 [理由]</yellow>"
+  usage-unban: "<yellow>用法: /hwidban unban 机器码前缀或玩家名</yellow>"
+  usage-check: "<yellow>用法: /hwidban check 玩家名</yellow>"
+  no-record: "<red>没有玩家 <white>{player}</white> 的机器码记录 (该玩家需在本插件启用后进服过至少一次)。</red>"
+  banned: "<green>已封禁 <white>{player}</white> 的 <white>{count}</white> 条机器码, 理由: {reason}</green>"
+  banhwid-ok: "<green>已封禁机器码 <white>{hwid}</white></green>"
+  tempban-ok: "<green>已临时封禁 <white>{player}</white> 的 <white>{count}</white> 条机器码, 至 <white>{until}</white>, 理由: {reason}</green>"
+  invalid-duration: "<red>时长格式无效, 示例: 7d / 12h / 30m / 1d12h</red>"
+  invalid-hwid: "<red>机器码必须是 64 位十六进制字符串 (SHA-256)。</red>"
+  unban-ok: "<green>已解封 <white>{count}</white> 条记录。</green>"
+  unban-none: "<red>没有匹配的封禁记录。</red>"
+  unban-vanilla: "<green>已同步解除 <white>{player}</white> 的原版封禁。</green>"
+  reloaded: "<green>配置已重载。</green>"
+  ban-line: "<gray><white>{hwid}</white> | {type} | {player} | 理由: {reason} | 操作者: {by} | {expires} | {date}</gray>"
+  list-header: "<aqua>=== 机器码封禁列表 第 {page}/{pages} 页 ===</aqua>"
+  check-header: "<aqua>=== {player} 的机器码信息 ===</aqua>"
+  check-line: "<gray>- <white>{hwid}</white> {status}</gray>"
+  check-reported: "<gray>上报机器码: <white>{hwid}</white> {status}</gray>"
+  check-none: "<red>暂无记录。</red>"
+  status-banned: "<red>[已封禁]</red>"
+  status-clean: "<green>[正常]</green>"
+  info: "<gray>BlazeHwidBan v{version} - 机器码(客户端指纹)封禁</gray>"
+  kick: "<dark_gray><st>────────────</st><red> 机器码封禁 </red><st>────────────</st></dark_gray><newline><newline><gray>玩家: <white>{player}</white></gray><newline><gray>原因: <white>{reason}</white></gray><newline><gray>操作者: <white>{by}</white></gray><newline><gray>封禁时间: <white>{date}</white></gray><newline><gray>到期: <white>{expires}</white></gray><newline><gray>解封标识: <white>{hwid}</white> ({type})</gray><newline><newline><gray>如认为误封, 请凭上方解封标识联系管理员申诉。</gray>"
+  strict-kick: "<red>此电脑已绑定其他账号, 无法登录。</red><newline><gray>如认为误判, 请联系服务器管理员申诉。</gray>"
+  guard-kick: "<dark_gray><st>────────────</st><red> 客户端拦截 </red><st>────────────</st></dark_gray><newline><newline><gray>玩家: <white>{player}</white></gray><newline><gray>检测: <white>{detail}</white></gray><newline><newline><gray>本服务器禁止使用外挂客户端。</gray><newline><gray>请使用原版或 Fabric + 官方配套模组进入。</gray><newline><gray>如认为误判, 请联系服务器管理员申诉。</gray>"
+  guard-alert: "<yellow>[客户端拦截] <white>{player}</white> ({detail}), {act}。</yellow>"
+  sync-ban-done: "<green>[原生联动] 已补封 <white>{player}</white> 的 <white>{count}</white> 条机器码, 同机踢出 <white>{kicked}</white> 人。</green>"
+  sync-ban-none: "<yellow>[原生联动] <white>{player}</white> 的机器码已在封禁列表, 无需补封。</yellow>"
+  sync-ban-norecord: "<yellow>[原生联动] <white>{player}</white> 没有机器码档案, 仅原生 UUID 封禁生效。</yellow>"
+  sync-ac-done: "<green>[反作弊联动] 已补封 <white>{player}</white> 的 <white>{count}</white> 条机器码, 同机踢出 <white>{kicked}</white> 人。</green>"
+  sync-ac-none: "<yellow>[反作弊联动] <white>{player}</white> 的机器码已在封禁列表, 无需重复添加。</yellow>"
+  sync-ac-norecord: "<yellow>[反作弊联动] <white>{player}</white> 没有机器码档案, 无法联动。</yellow>"
+  alt-notify: "<yellow>[同机提醒] <white>{player}</white> 与 <white>{others}</white> 同机 (机器码 <white>{hwid}</white>)</yellow>"
+  no-mod-notify: "<yellow>[覆盖率] <white>{player}</white> 未安装配套客户端, 仅指纹兜底。</yellow>"
+  alt-header: "<aqua>=== {player} 的同机关联 ===</aqua>"
+  alt-none: "<green>没有发现同机或同指纹的其他账号。</green>"
+  alt-machine: "<gray>上报机器码 <white>{hwid}</white> 关联 <white>{count}</white> 个账号:</gray>"
+  alt-line: "<gray>- <white>{player}</white> (上次活跃: {seen})</gray>"
+  alt-fp-header: "<gray>指纹关联 (同客户端配置, 弱关联):</gray>"
+  alt-fp-line: "<gray>- <white>{player}</white> (上次活跃: {seen})</gray>"

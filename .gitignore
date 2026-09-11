@@ -1,0 +1,18 @@
+# ---- 测试服运行数据（世界 / 日志 / 依赖库，体积大且含玩家数据，绝不入库）----
+test-server/
+
+# ---- 构建工具与缓存 ----
+.tools/
+**/.gradle/
+**/build/
+**/target/
+
+# ---- 项目记忆与工作日志（私有）----
+.workbuddy/
+
+# ---- 日志与临时文件 ----
+*.log
+*.log.gz
+hs_err_pid*.log
+replay_pid*.log
+*.tmp

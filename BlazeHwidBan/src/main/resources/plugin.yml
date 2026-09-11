@@ -1,0 +1,22 @@
+name: BlazeHwidBan
+version: '1.0.0'
+main: cn.blaze.hwidban.HwidBanPlugin
+api-version: '1.21'
+description: 机器码（客户端指纹 + 可选客户端上报 HWID）封禁，兼容 Paper 1.21.x 至最新版
+author: Blaze
+softdepend: [GrimAC, Vulcan, Matrix, Intave, Spartan, LiteBans, AdvancedBan, Essentials]
+
+commands:
+  hwidban:
+    description: 机器码封禁管理命令
+    aliases: [hban]
+    permission: hwidban.admin
+    usage: /hwidban help
+
+permissions:
+  hwidban.admin:
+    description: BlazeHwidBan 全部管理权限
+    default: op
+  hwidban.exempt:
+    description: 豁免机器码/指纹校验与 strict 判定
+    default: false
