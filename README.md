@@ -11,8 +11,8 @@
 [![Stars](https://img.shields.io/github/stars/XiaoYuan08-Mc/BlazeHwidBan?style=for-the-badge&label=Stars&color=f1c40f)](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/stargazers)
 [![License](https://img.shields.io/github/license/XiaoYuan08-Mc/BlazeHwidBan?style=for-the-badge&label=%E8%AE%B8%E5%8F%AF&color=2ecc71)](LICENSE)
 
-[![Paper](https://img.shields.io/badge/Paper-1.21.x%20~%2026.2-2196f3?style=for-the-badge)](https://papermc.io)
-[![Java](https://img.shields.io/badge/Java-21%20%7C%2025-ed8b00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net)
+[![Paper](https://img.shields.io/badge/Paper-26.x-2196f3?style=for-the-badge)](https://papermc.io)
+[![Java](https://img.shields.io/badge/Java-25-ed8b00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net)
 [![Fabric](https://img.shields.io/badge/Fabric-MC%2026.2-dbd0b4?style=for-the-badge)](https://fabricmc.net)
 
 [**⬇ 下载**](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)　·　[快速开始](#-快速开始)　·　[功能一览](#-功能一览)　·　[工作原理](#-工作原理)　·　[指令](#-指令)　·　[常见问题](#-常见问题)
@@ -65,7 +65,7 @@ Minecraft 的传统封禁封的是**账号**——玩家注册个小号，一键
 
 **⚙️ 服务器友好**
 
-- 双版本线：Paper 1.21.x / 26.x
+- 面向 Paper 26.x（Java 25）
 - 配置自动合并（升级不用手改）
 - 审计日志 · 封禁画面 · 豁免权限
 - 全部文案可自定义（MiniMessage）
@@ -129,12 +129,11 @@ Minecraft 的传统封禁封的是**账号**——玩家注册个小号，一键
 
 ### 1️⃣ 服务端安装
 
-从 [**Releases**](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases) 下载对应版本，放进服务器的 `plugins/` 文件夹：
+从 [**Releases**](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases) 下载，放进服务器的 `plugins/` 文件夹：
 
-| 服务器版本 | 下载哪个 |
+| 文件 | 环境要求 |
 |:--|:--|
-| Paper **26.x**（Java 25） | `BlazeHwidBan-1.0.0-mc26.jar` |
-| Paper **1.21.x**（Java 21） | `BlazeHwidBan-1.0.0-1.21.jar` |
+| `BlazeHwidBan-1.0.0-mc26.jar` | Paper **26.x** 服务器 · Java 25 |
 
 重启服务器即可，配置文件自动生成。
 

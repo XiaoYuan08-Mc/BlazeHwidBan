@@ -63,7 +63,7 @@ public final class HwidBanPlugin extends JavaPlugin {
                 getLogger().info("定时清理: 已移除 " + n + " 条过期临时封禁。");
             }
         }, 20L * 60, 20L * 600);
-        getLogger().info("BlazeHwidBan 已启用 (兼容 Paper 1.21.x+)");
+        getLogger().info("BlazeHwidBan 已启用 (Paper 26.x)");
     }
 
     @Override

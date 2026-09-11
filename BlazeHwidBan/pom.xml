@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -29,7 +29,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <version>26.2.build.121-stable</version>
             <scope>provided</scope>
         </dependency>
         <!-- Gson: Paper 服务端已内置, provided 避免打包冲突 -->
@@ -42,6 +42,6 @@
     </dependencies>
 
     <build>
-        <finalName>BlazeHwidBan-${project.version}</finalName>
+        <finalName>BlazeHwidBan-1.0.0-mc26</finalName>
     </build>
 </project>

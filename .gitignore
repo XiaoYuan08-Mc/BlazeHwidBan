@@ -10,6 +10,9 @@ test-server/
 # ---- 项目记忆与工作日志（私有）----
 .workbuddy/
 
+# ---- GitHub CLI 凭据（绝不入库）----
+.gh/
+
 # ---- 日志与临时文件 ----
 *.log
 *.log.gz

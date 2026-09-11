@@ -1,8 +1,8 @@
 name: BlazeHwidBan
 version: '1.0.0'
 main: cn.blaze.hwidban.HwidBanPlugin
-api-version: '1.21'
-description: 机器码（客户端指纹 + 可选客户端上报 HWID）封禁，兼容 Paper 1.21.x 至最新版
+api-version: '1.21'   # Paper 最低 API 等级声明（Paper 规定的固定值，非"支持 1.21 服务端"）
+description: 机器码（客户端指纹 + 可选客户端上报 HWID）封禁 · 面向 Paper 26.x
 author: Blaze
 softdepend: [GrimAC, Vulcan, Matrix, Intave, Spartan, LiteBans, AdvancedBan, Essentials]
 
