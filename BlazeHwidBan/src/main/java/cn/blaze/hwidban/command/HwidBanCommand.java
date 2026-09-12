@@ -94,7 +94,7 @@ public class HwidBanCommand implements TabExecutor {
     }
 
     /** 时长解析: 7d / 12h / 30m, 可组合 (1d12h), 纯数字按天。 */
-    static long parseDuration(String s) {
+    public static long parseDuration(String s) {
         if (s == null || s.isEmpty()) {
             return -1;
         }

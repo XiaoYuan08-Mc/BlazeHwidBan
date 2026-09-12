@@ -1,10 +1,14 @@
 name: BlazeHwidBan
-version: '1.0.0'
+version: '1.1.0'
 main: cn.blaze.hwidban.HwidBanPlugin
 api-version: '1.21'   # Paper 最低 API 等级声明（Paper 规定的固定值，非"支持 1.21 服务端"）
-description: 机器码（客户端指纹 + 可选客户端上报 HWID）封禁 · 面向 Paper 26.x
+description: 机器码（客户端指纹 + 可选客户端上报 HWID）封禁 · 多服封禁同步 · 面向 Paper 26.x
 author: Blaze
 softdepend: [GrimAC, Vulcan, Matrix, Intave, Spartan, LiteBans, AdvancedBan, Essentials]
+# SQL 驱动 (仅 sync.backend 开启 sqlite/mysql 时实际使用), 首次启动从 Maven 中央仓库自动下载
+libraries:
+  - org.xerial:sqlite-jdbc:3.53.4.0
+  - com.mysql:mysql-connector-j:8.4.0
 
 commands:
   hwidban:

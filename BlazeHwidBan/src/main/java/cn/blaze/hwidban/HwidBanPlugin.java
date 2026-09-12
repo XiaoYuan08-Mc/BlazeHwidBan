@@ -7,16 +7,22 @@ import cn.blaze.hwidban.listener.ClientGuardListener;
 import cn.blaze.hwidban.listener.HwidMessageListener;
 import cn.blaze.hwidban.listener.JoinListener;
 import cn.blaze.hwidban.listener.VanillaBanSync;
+import cn.blaze.hwidban.storage.BanStore;
+import cn.blaze.hwidban.storage.JsonBanStore;
+import cn.blaze.hwidban.storage.SqlBanStore;
+import cn.blaze.hwidban.sync.SyncService;
 import cn.blaze.hwidban.util.Msg;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Locale;
 
 /** BlazeHwidBan 主类。 */
 public final class HwidBanPlugin extends JavaPlugin {
@@ -26,6 +32,8 @@ public final class HwidBanPlugin extends JavaPlugin {
     private Msg msg;
     private VanillaBanSync vanillaSync;
     private ClientGuardListener clientGuard;
+    private BanStore banStore;
+    private SyncService sync;
     private String channel = "blaze:hwid";
 
     @Override
@@ -41,7 +49,14 @@ public final class HwidBanPlugin extends JavaPlugin {
         }
         reloadServices();
         hwidManager = new HwidManager(this);
+        banStore = createBanStore();
+        hwidManager.setStore(banStore);
         hwidManager.load();
+        if (!(banStore instanceof JsonBanStore)) {
+            sync = new SyncService(this, hwidManager, banStore,
+                    c.getInt("sync.interval-seconds", 5));
+            sync.start();
+        }
         getServer().getPluginManager().registerEvents(new JoinListener(this), this);
         clientGuard = new ClientGuardListener(this);
         getServer().getPluginManager().registerEvents(clientGuard, this);
@@ -70,6 +85,46 @@ public final class HwidBanPlugin extends JavaPlugin {
     public void onDisable() {
         if (hwidManager != null) {
             hwidManager.flush();
+        }
+        if (sync != null) {
+            sync.close();
+        } else if (banStore != null) {
+            banStore.close();
+        }
+    }
+
+    /**
+     * 按 sync.backend 创建封禁存储: json(默认) / sqlite / mysql。
+     * 创建失败时降级为 json 文件存储, 保证插件始终可用。
+     */
+    private BanStore createBanStore() {
+        String backend = getConfig().getString("sync.backend", "json").toLowerCase(Locale.ROOT);
+        try {
+            switch (backend) {
+                case "sqlite" -> {
+                    File f = new File(getDataFolder(), getConfig().getString("sync.sqlite.file", "bans.db"));
+                    getLogger().info("封禁存储: SQLite (" + f.getName() + "), 多服同步待各服接入同一文件后生效。");
+                    return new SqlBanStore("org.sqlite.JDBC", "jdbc:sqlite:" + f.getAbsolutePath(), null, null, false);
+                }
+                case "mysql" -> {
+                    FileConfiguration cfg = getConfig();
+                    String url = "jdbc:mysql://" + cfg.getString("sync.mysql.host", "127.0.0.1")
+                            + ":" + cfg.getInt("sync.mysql.port", 3306)
+                            + "/" + cfg.getString("sync.mysql.database", "blazehwidban")
+                            + "?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8&serverTimezone=UTC";
+                    getLogger().info("封禁存储: MySQL (" + cfg.getString("sync.mysql.host", "127.0.0.1") + "), 多服同步已启用。");
+                    return new SqlBanStore("com.mysql.cj.jdbc.Driver", url,
+                            cfg.getString("sync.mysql.user", "root"),
+                            cfg.getString("sync.mysql.password", ""), true);
+                }
+                default -> {
+                    return new JsonBanStore(this, new File(getDataFolder(), "bans.json"),
+                            hwidManager::banSnapshot);
+                }
+            }
+        } catch (Exception e) {
+            getLogger().severe("初始化 " + backend + " 封禁存储失败: " + e.getMessage() + " —— 已降级为 json 文件存储 (无多服同步)。");
+            return new JsonBanStore(this, new File(getDataFolder(), "bans.json"), hwidManager::banSnapshot);
         }
     }
 

@@ -41,6 +41,7 @@ public class JoinListener implements Listener {
         HwidManager mgr = plugin.hwidManager();
         try {
             String fp = plugin.fingerprints().compute(player);
+            alertFingerprintChange(player, mgr, fp);
             mgr.recordFingerprint(player.getUniqueId(), player.getName(), fp);
 
             BanEntry hit = mgr.isBanned(fp);
@@ -64,6 +65,25 @@ public class JoinListener implements Listener {
         } catch (Throwable t) {
             plugin.getLogger().warning("指纹校验出错: " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
+    }
+
+    /**
+     * 指纹突变告警: 本次进服指纹与该账号历史指纹都不同时提醒管理员。
+     * 指纹会因玩家改设置/装模组而正常变化, 仅提醒不处罚。
+     */
+    private void alertFingerprintChange(Player player, HwidManager mgr, String fp) {
+        if (!plugin.getConfig().getBoolean("fingerprint-alert.enabled", true)) {
+            return;
+        }
+        PlayerProfile prev = mgr.peekProfile(player.getUniqueId());
+        if (prev == null || prev.fingerprints.isEmpty() || prev.fingerprints.contains(fp)) {
+            return; // 首次进服无历史 / 指纹未变
+        }
+        String shortFp = fp.substring(0, 8) + "…";
+        plugin.getLogger().info("[指纹突变] " + player.getName() + " 的客户端指纹与历史不同 (" + shortFp + ")");
+        Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.hasPermission("hwidban.admin"))
+                .forEach(p -> plugin.msg().send(p, "fingerprint-alert", "player", player.getName(), "fp", shortFp));
     }
 
     /** 同机关联提醒: 进服玩家的上报机器码与其他档案一致时, 提醒在线管理员。 */

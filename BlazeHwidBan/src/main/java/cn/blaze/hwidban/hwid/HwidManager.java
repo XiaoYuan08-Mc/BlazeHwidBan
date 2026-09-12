@@ -1,6 +1,7 @@
 package cn.blaze.hwidban.hwid;
 
 import cn.blaze.hwidban.HwidBanPlugin;
+import cn.blaze.hwidban.storage.BanStore;
 import cn.blaze.hwidban.util.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -27,7 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** 封禁数据管理: 内存缓存 + JSON 异步落盘 (bans.json / profiles.json)。 */
+/** 封禁数据管理: 内存缓存 + 经 BanStore 持久化 (json/sqlite/mysql), 档案本地 JSON 异步落盘。 */
 public class HwidManager {
 
     public static final String FINGERPRINT = "FINGERPRINT";
@@ -42,34 +43,27 @@ public class HwidManager {
     private final Map<UUID, PlayerProfile> profiles = new ConcurrentHashMap<>();
     private final Object ioLock = new Object();
     private final AtomicBoolean pending = new AtomicBoolean(false);
-    private final Path bansFile;
     private final Path profilesFile;
+    private BanStore store;
 
     public HwidManager(HwidBanPlugin plugin) {
         this.plugin = plugin;
         File dir = plugin.getDataFolder();
-        this.bansFile = new File(dir, "bans.json").toPath();
         this.profilesFile = new File(dir, "profiles.json").toPath();
+    }
+
+    /** 注入封禁存储 (json/sqlite/mysql), 必须在 load() 之前调用。 */
+    public void setStore(BanStore store) {
+        this.store = store;
     }
 
     public synchronized void load() {
         try {
-            if (Files.exists(bansFile)) {
-                List<BanEntry> list = gson.fromJson(Files.readString(bansFile, StandardCharsets.UTF_8),
-                        new TypeToken<List<BanEntry>>() { }.getType());
-                bans.clear();
-                if (list != null) {
-                    for (BanEntry e : list) {
-                        if (e != null && e.hwid != null) {
-                            bans.put(e.hwid.toLowerCase(Locale.ROOT), e);
-                        }
-                    }
-                }
-            }
+            bans.clear();
+            bans.putAll(store.loadAll());
             if (Files.exists(profilesFile)) {
                 Map<String, PlayerProfile> map = gson.fromJson(Files.readString(profilesFile, StandardCharsets.UTF_8),
                         new TypeToken<Map<String, PlayerProfile>>() { }.getType());
-                profiles.clear();
                 if (map != null) {
                     for (Map.Entry<String, PlayerProfile> en : map.entrySet()) {
                         try {
@@ -91,10 +85,12 @@ public class HwidManager {
     /** 停服前同步落盘。 */
     public void flush() {
         synchronized (ioLock) {
-            writeAll();
+            writeProfiles();
         }
+        store.flush();
     }
 
+    /** 档案 (profiles.json) 异步落盘, 合并写入去重。 */
     private void saveAsync() {
         if (!pending.compareAndSet(false, true)) {
             return;
@@ -102,21 +98,73 @@ public class HwidManager {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             pending.set(false);
             synchronized (ioLock) {
-                writeAll();
+                writeProfiles();
             }
         });
     }
 
-    private void writeAll() {
+    private void writeProfiles() {
         try {
-            Files.createDirectories(bansFile.getParent());
-            Files.writeString(bansFile, gson.toJson(new ArrayList<>(bans.values())), StandardCharsets.UTF_8);
+            Files.createDirectories(profilesFile.getParent());
             Map<String, PlayerProfile> out = new LinkedHashMap<>();
             profiles.forEach((u, p) -> out.put(u.toString(), p));
             Files.writeString(profilesFile, gson.toJson(out), StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            plugin.getLogger().severe("保存数据失败: " + ex.getMessage());
+            plugin.getLogger().severe("保存 profiles.json 失败: " + ex.getMessage());
         }
+    }
+
+    /** 封禁变更 → 异步写存储 (json 整文件合并去重; sql 单行 upsert)。 */
+    private void persistUpsert(BanEntry e) {
+        BanStore s = store;
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                s.upsert(e);
+            } catch (Exception ex) {
+                plugin.getLogger().severe("封禁写入存储失败: " + ex.getMessage());
+            }
+        });
+    }
+
+    /** 封禁删除 → 异步写存储。 */
+    private void persistDelete(String hwid) {
+        BanStore s = store;
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                s.delete(hwid);
+            } catch (Exception ex) {
+                plugin.getLogger().severe("封禁删除失败: " + ex.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 用共享库的最新数据对账内存缓存 (多服同步轮询调用)。
+     * 过滤已过期条目; 返回本次新出现 (本服此前不知道) 的封禁, 供即时踢人。
+     */
+    public Map<String, BanEntry> replaceAllBans(Map<String, BanEntry> fresh) {
+        long now = System.currentTimeMillis();
+        Map<String, BanEntry> added = new LinkedHashMap<>();
+        for (Map.Entry<String, BanEntry> en : fresh.entrySet()) {
+            BanEntry e = en.getValue();
+            if (e == null || e.hwid == null) {
+                continue;
+            }
+            if (e.expires > 0 && e.expires < now) {
+                continue; // 已过期, 不入缓存
+            }
+            String key = e.hwid.toLowerCase(Locale.ROOT);
+            if (!bans.containsKey(key)) {
+                added.put(key, e);
+            }
+            bans.put(key, e);
+        }
+        for (String key : List.copyOf(bans.keySet())) {
+            if (!fresh.containsKey(key)) {
+                bans.remove(key);
+            }
+        }
+        return added;
     }
 
     public BanEntry add(String hwid, String type, String reason, CommandSender by, OfflinePlayer target) {
@@ -131,7 +179,7 @@ public class HwidManager {
             e.uuid = target.getUniqueId().toString();
         }
         bans.put(e.hwid, e);
-        saveAsync();
+        persistUpsert(e);
         audit("ADD", e);
         return e;
     }
@@ -157,20 +205,24 @@ public class HwidManager {
             e.playerName = targetName;
         }
         bans.put(e.hwid, e);
-        saveAsync();
+        persistUpsert(e);
         audit("ADD", e);
         return e;
     }
 
-    public BanEntry isBanned(String hwid) {
-        if (hwid == null) {
+    /** 当前内存中全部封禁的快照 (json 存储落盘用)。 */
+    public List<BanEntry> banSnapshot() {
+        return List.copyOf(bans.values());
+    }
+
+    public BanEntry isBanned(String hwid) {        if (hwid == null) {
             return null;
         }
         BanEntry e = bans.get(hwid.toLowerCase(Locale.ROOT));
         if (e != null && e.expires > 0 && e.expires < System.currentTimeMillis()) {
             // 临时封禁已过期: 惰性清除
             bans.remove(e.hwid);
-            saveAsync();
+            persistDelete(e.hwid);
             audit("EXPIRE", e);
             return null;
         }
@@ -188,10 +240,8 @@ public class HwidManager {
         }
         for (BanEntry e : expired) {
             bans.remove(e.hwid);
+            persistDelete(e.hwid);
             audit("EXPIRE", e);
-        }
-        if (!expired.isEmpty()) {
-            saveAsync();
         }
         return expired.size();
     }
@@ -224,9 +274,11 @@ public class HwidManager {
                 }
             }
         }
-        removed.forEach(e -> bans.remove(e.hwid));
+        removed.forEach(e -> {
+            bans.remove(e.hwid);
+            persistDelete(e.hwid);
+        });
         if (!removed.isEmpty()) {
-            saveAsync();
             audit("REMOVE x" + removed.size() + " (query=" + query + ")", null);
         }
         return removed;

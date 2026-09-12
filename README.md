@@ -51,6 +51,8 @@ Minecraft 的传统封禁封的是**账号**——玩家注册个小号，一键
 - 临时封禁（`7d12h` 可组合）
 - 封禁生效自动踢出**同机在线账号**
 - 同机新账号进服提醒管理员
+- **多服封禁同步**（sqlite/mysql 共享库，任一服封禁全网生效）
+- 指纹突变告警 · 同机多账号自动处罚
 
 </td><td width="33%" valign="top">
 
@@ -133,7 +135,7 @@ Minecraft 的传统封禁封的是**账号**——玩家注册个小号，一键
 
 | 文件 | 环境要求 |
 |:--|:--|
-| `BlazeHwidBan-1.0.0-mc26.jar` | Paper **26.x** 服务器 · Java 25 |
+| `BlazeHwidBan-1.1.0-mc26.jar` | Paper **26.x** 服务器 · Java 25 |
 
 重启服务器即可，配置文件自动生成。
 
@@ -281,7 +283,7 @@ strict-mode: false
 ```bash
 cd BlazeHwidBan
 mvn clean package
-# 产物：target/BlazeHwidBan-1.0.0.jar
+# 产物：target/BlazeHwidBan-1.1.0-mc26.jar
 ```
 
 **客户端模组**（JDK 21+）
@@ -344,6 +346,6 @@ cd BlazeHwidMod
 
 [⬇ 下载最新版](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/releases)　·　[报告问题](https://github.com/XiaoYuan08-Mc/BlazeHwidBan/issues)　·　[MIT License](LICENSE)
 
-<sub>BlazeHwidBan · Paper 服务端插件 + Fabric 客户端模组 · v1.0.0</sub>
+<sub>BlazeHwidBan · Paper 服务端插件 + Fabric 客户端模组 · v1.1.0</sub>
 
 </div>

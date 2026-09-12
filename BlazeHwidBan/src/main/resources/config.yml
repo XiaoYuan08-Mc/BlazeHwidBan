@@ -85,6 +85,39 @@ strict-mode: false
 # strict 拒绝的同时是否自动写入机器码封禁 (换任何客户端都进不来)
 strict-auto-ban: false
 
+# 同机多账号自动处罚: 同一机器码下的不同账号数达到阈值时触发
+# 统计的是本服档案中的账号数; tempban 动作会封整个机器码 (含主号), 请谨慎设置
+alt-auto-action:
+  enabled: false
+  max-accounts: 5
+  action: alert          # alert=仅提醒管理员 / tempban=临时封禁该机器码并踢出
+  tempban-duration: 7d
+  reason: "同机账号数量异常"
+
+# 指纹突变告警: 玩家本次进服的客户端指纹与其历史指纹都不同时提醒管理员
+# 指纹会因玩家改设置/装模组而正常变化, 仅供参考, 不会自动处罚
+fingerprint-alert:
+  enabled: true
+
+# 多服务器封禁同步: 多台服务器共用同一个封禁库, 任一服封禁, 全部服生效
+# backend: json=单机文件(默认, 不同步) / sqlite=SQLite库 / mysql=MySQL数据库
+# 说明:
+#   - sqlite 适合同一台机器跑多个服 (各服指向同一个文件); 跨机器部署请用 mysql
+#   - 切换 backend / 改连接信息需重启服务器生效
+#   - 首次启用 sqlite/mysql 时, 会把本地 bans.json 的既有封禁自动迁移入库
+#   - 指纹档案 (profiles.json) 不参与同步: 每台服的指纹盐值不同, 指纹只在单服内有意义
+sync:
+  backend: json
+  interval-seconds: 5    # 与共享封禁库对账的间隔 (秒)
+  sqlite:
+    file: bans.db        # 相对 plugins/BlazeHwidBan/; 多服共用请填指向同一文件的绝对路径
+  mysql:
+    host: 127.0.0.1
+    port: 3306
+    database: blazehwidban
+    user: root
+    password: ""
+
 # 操作审计日志: 所有封禁/解封/过期动作追加记录到 bans.log
 audit-log: true
 
@@ -128,6 +161,8 @@ messages:
   sync-ac-norecord: "<yellow>[反作弊联动] <white>{player}</white> 没有机器码档案, 无法联动。</yellow>"
   alt-notify: "<yellow>[同机提醒] <white>{player}</white> 与 <white>{others}</white> 同机 (机器码 <white>{hwid}</white>)</yellow>"
   no-mod-notify: "<yellow>[覆盖率] <white>{player}</white> 未安装配套客户端, 仅指纹兜底。</yellow>"
+  fingerprint-alert: "<yellow>[指纹突变] <white>{player}</white> 的客户端指纹与历史不同 (<white>{fp}</white>)。</yellow>"
+  alt-auto-alert: "<yellow>[同机多账号] <white>{player}</white> 所在机器已有 <white>{count}</white> 个账号 (机器码 <white>{hwid}</white>)。</yellow>"
   alt-header: "<aqua>=== {player} 的同机关联 ===</aqua>"
   alt-none: "<green>没有发现同机或同指纹的其他账号。</green>"
   alt-machine: "<gray>上报机器码 <white>{hwid}</white> 关联 <white>{count}</white> 个账号:</gray>"

@@ -1,6 +1,7 @@
 package cn.blaze.hwidban.listener;
 
 import cn.blaze.hwidban.HwidBanPlugin;
+import cn.blaze.hwidban.command.HwidBanCommand;
 import cn.blaze.hwidban.hwid.BanEntry;
 import cn.blaze.hwidban.hwid.HwidManager;
 import cn.blaze.hwidban.hwid.PlayerProfile;
@@ -29,6 +30,9 @@ public class HwidMessageListener implements PluginMessageListener {
     private static final Pattern HASH_PATTERN = Pattern.compile("\\b[0-9a-fA-F]{64}\\b");
     /** 黑客端识别: MODS: 段携带 Fabric 模组 id 列表 (配套 mod 上报, 可选, 老版本 mod 无此段)。 */
     private static final Pattern MODS_PATTERN = Pattern.compile("MODS:([A-Za-z0-9_,\\-. ]+)");
+
+    /** 本次运行中已做过同机多账号提醒的机器码, 防止刷屏。 */
+    private final java.util.Set<String> altAlerted = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private final HwidBanPlugin plugin;
 
@@ -74,6 +78,9 @@ public class HwidMessageListener implements PluginMessageListener {
                 }
                 plugin.clientGuard().checkMods(player, ids);
             }
+            if (checkAltAuto(player, mgr, hwid)) {
+                return; // 已被同机多账号自动处罚踢出
+            }
             if (plugin.getConfig().getBoolean("strict-mode", false)) {
                 UUID owner = findOwner(mgr, hwid, player.getUniqueId());
                 if (owner != null) {
@@ -89,6 +96,56 @@ public class HwidMessageListener implements PluginMessageListener {
         } catch (Throwable t) {
             plugin.getLogger().warning("处理客户端上报机器码出错: " + t.getMessage());
         }
+    }
+
+    /**
+     * 同机多账号自动处罚: 同一机器码下的不同账号数达到阈值时触发。
+     * action=alert 仅提醒管理员; action=tempban 临时封禁该机器码 (含主号, 整机生效)。
+     * 返回 true 表示已执行处罚并踢出。
+     */
+    private boolean checkAltAuto(Player player, HwidManager mgr, String hwid) {
+        org.bukkit.configuration.file.FileConfiguration c = plugin.getConfig();
+        if (!c.getBoolean("alt-auto-action.enabled", false)) {
+            return false;
+        }
+        int max = Math.max(2, c.getInt("alt-auto-action.max-accounts", 5));
+        int count = 0;
+        for (PlayerProfile p : mgr.allProfiles()) {
+            if (hwid.equalsIgnoreCase(p.reportedHwid)) {
+                count++; // 含本次上报的玩家自己 (recordReported 已写入档案)
+            }
+        }
+        if (count < max) {
+            return false;
+        }
+        String action = c.getString("alt-auto-action.action", "alert");
+        String reason = c.getString("alt-auto-action.reason", "同机账号数量异常");
+        String shortHwid = hwid.substring(0, 8) + "…";
+        if ("tempban".equalsIgnoreCase(action)) {
+            long ms = HwidBanCommand.parseDuration(c.getString("alt-auto-action.tempban-duration", "7d"));
+            if (ms <= 0) {
+                ms = 7 * 86400000L;
+            }
+            BanEntry e = mgr.addFor(hwid, HwidManager.REPORTED, reason, "ALT-AUTO",
+                    player.getUniqueId(), player.getName(), System.currentTimeMillis() + ms);
+            player.kick(plugin.msg().kick(player.getName(), e));
+            plugin.getLogger().warning("[同机多账号] " + player.getName() + " 所在机器已有 " + count
+                    + " 个账号, 已自动临时封禁机器码 " + shortHwid);
+            alertAdmins("alt-auto-alert", player.getName(), String.valueOf(count), shortHwid);
+            return true;
+        }
+        // alert 模式: 每个机器码每次运行只提醒一次, 避免刷屏
+        if (altAlerted.add(hwid)) {
+            plugin.getLogger().info("[同机多账号] " + player.getName() + " 所在机器已有 " + count + " 个账号 (" + shortHwid + ")");
+            alertAdmins("alt-auto-alert", player.getName(), String.valueOf(count), shortHwid);
+        }
+        return false;
+    }
+
+    private void alertAdmins(String key, String player, String count, String hwid) {
+        org.bukkit.Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.hasPermission("hwidban.admin"))
+                .forEach(p -> plugin.msg().send(p, key, "player", player, "count", count, "hwid", hwid));
     }
 
     /**
