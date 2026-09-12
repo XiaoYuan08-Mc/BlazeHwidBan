@@ -25,7 +25,7 @@
     </repositories>
 
     <dependencies>
-        <!-- Paper API: 仅编译期依赖, 运行时由服务端提供 (1.21.x 至最新版通用) -->
+        <!-- Paper API: 仅编译期依赖, 运行时由服务端提供 (仅支持 Paper 26.x) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
